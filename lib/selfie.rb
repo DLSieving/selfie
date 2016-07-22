@@ -1,5 +1,6 @@
 require 'aws-sdk'
 require 'assumer'
+require 'time'
 require_relative 'loggable'
 
 VERSION = '1.0.0'
@@ -62,6 +63,17 @@ class Selfie
       log.info "Account has #{snapshot_ids.count} snapshots pending"
       snapshots.each do |s|
         log.info "#{s.snapshot_id} is #{s.state}, #{s.progress}"
+        if s.state == 'completed' then
+          log.info "Tagging #{s.snapshot_id}"
+          ec2.create_tags(
+            resources: [s.snapshot_id],
+            tags: [
+              {key: "origin_account", value: @target_account},
+              {key: "forens_account", value: @forensic_account},
+              {key: "snapshot_time", value: Time.now.utc.iso8601}
+            ]
+          )
+        end
         snapshot_ids.delete(s.snapshot_id) if s.state == 'completed' || s.state == 'error'
       end
     end
